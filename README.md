@@ -2,7 +2,6 @@
 
 This project contains a LLM powered Social Simulation Discord app written in JavaScript, based on the [getting started guide](https://discord.com/developers/docs/getting-started) from Discord.
 
-![Demo of app](https://github.com/discord/discord-example-app/raw/main/assets/getting-started-demo.gif?raw=true)
 
 ## Project structure
 Below is a basic overview of the project structure:
@@ -113,7 +112,7 @@ The simulation can be run in your Discord Server with '/simulate'. This will ope
 * The number of **rounds**: 1 - 10
   * 1 round is an initial response from the bots to your message, then 1 message from each responding to eachother in a specific location
   * More rounds means more responses, higher rounds will increase runtime
-* after hitting enter, the user can type in their **error message**
+* after hitting enter, the user can type in their **error message** and start the simulation
   * all bots see error message and respond 
 
 ## Other resources
