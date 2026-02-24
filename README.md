@@ -2,7 +2,7 @@
 
 This project contains a LLM powered Social Simulation Discord app written in JavaScript, based on the [getting started guide](https://discord.com/developers/docs/getting-started) from Discord.
 
-
+![Demo of App](social%20sim%20demo.gif)
 ## Project structure
 Below is a basic overview of the project structure:
 
