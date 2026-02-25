@@ -22,12 +22,11 @@ Below is a basic overview of the project structure:
 
 ## Running app locally
 
-Before you start, you'll need to install [NodeJS](https://nodejs.org/en/download/) and [create a Discord app](https://discord.com/developers/applications) with the proper permissions:
+Before you start, you'll need to install [NodeJS](https://nodejs.org/en/download/), [Ollama](https://ollama.com), and [Ngrok](https://ngrok.com/?homepage-cta-docs=control)
+
+You also need to [create a Discord app](https://discord.com/developers/applications) with the proper permissions:
 - `applications.commands`
 - `bot` (with Send Messages enabled)
-
-You will also need to install [Ollama](https://ollama.com) and [Ngrok](https://ngrok.com/?homepage-cta-docs=control)
-
 Configuring the app is covered in detail in the [getting started guide](https://discord.com/developers/docs/getting-started).
 
 ### Setup project
@@ -112,7 +111,7 @@ The simulation can be run in your Discord Server with '/simulate'. This will ope
 * The number of **rounds**: 1 - 10
   * 1 round is an initial response from the bots to your message, then 1 message from each responding to eachother in a specific location
   * More rounds means more responses, higher rounds will increase runtime
-* after hitting enter, the user can type in their **error message** and start the simulation
+* After hitting enter, the user can type in their **error message** and start the simulation
   * all bots see error message and respond 
 
 ## Other resources
