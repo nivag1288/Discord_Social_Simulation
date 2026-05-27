@@ -1,6 +1,7 @@
 // Simulation Engine - Creates and manages town emergency simulations
 // Combines location selection, bot allocation, and simulation state
 
+import { randomUUID } from 'crypto';
 import { getRandomLocations, getTotalCapacity } from './locations.js';
 import { assignBotsToLocations, validateAssignments } from './bot_allocator.js';
 import { TOWN_RESIDENTS } from './residents.js';
@@ -9,7 +10,7 @@ import { TOWN_RESIDENTS } from './residents.js';
  * Generate a unique simulation ID
  */
 function generateSimulationId() {
-  return `sim_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  return `sim_${randomUUID()}`;
 }
 
 /**

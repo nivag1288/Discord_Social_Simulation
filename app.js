@@ -78,6 +78,23 @@ function validateMessageSecurity(message) {
 }
 
 
+async function callOllama(prompt, systemPrompt, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(LOCAL_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: MODEL, prompt, system: systemPrompt, stream: false }),
+      });
+      const data = await res.json();
+      return data.response || 'No response';
+    } catch (err) {
+      if (attempt === retries) throw err;
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+    }
+  }
+}
+
 async function createMyFolder(folderPath) {
   try {
     await fs.mkdir(folderPath, { recursive: true });
@@ -265,6 +282,8 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
         }
 
         const mainMessageId = messageData.id;
+        // Use the channel endpoint for all subsequent updates — no 15-min token expiry
+        const updateEndpoint = `channels/${channelId}/messages/${mainMessageId}`;
 
         // Create a thread for each location
         for (const location of simulation.locations) {
@@ -309,12 +328,12 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
         let finalMessage = `${summary}\n\n**Location Threads:**\n${threadLinks}\n\n` +
                             `✅ Setup complete! Starting emergency response...`;
 
-        await safeUpdateMessage(getMessageEndpoint, finalMessage);
+        await safeUpdateMessage(updateEndpoint, finalMessage);
 
         console.log(`Simulation ${simulation.id} setup complete`);
 
         // create folder for simulation transcript
-        createMyFolder(`./Transcripts/${simulation.id}`);
+        await createMyFolder(`./Transcripts/${simulation.id}`);
 
         console.log(`Beginning Simulation: Emergency alert and initial responses`);
 
@@ -352,20 +371,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
                 // Build prompt for bot's initial reaction
                 const botPrompt = `You are in ${location.name} when you receive this emergency alert:\n\n"${emergencyMessage}"\n\nRespond with your immediate reaction and thoughts about what to do. Response must be at most 2000 characters.`;
 
-                // Call Ollama
-                const ollamaResponse = await fetch(LOCAL_ENDPOINT, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    model: MODEL,
-                    prompt: botPrompt,
-                    system: bot.systemPrompt,
-                    stream: false,
-                  }),
-                });
-
-                const ollamaData = await ollamaResponse.json();
-                const responseText = ollamaData.response || 'No response';
+                const responseText = await callOllama(botPrompt, bot.systemPrompt);
 
                 // Post bot's response to thread
                 await DiscordRequest(alertEndpoint, {
@@ -414,7 +420,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
                                      `**Current Status:**\n${statsText}\n\n` +
                                      `⏳ Starting conversation rounds...`;
 
-        await safeUpdateMessage(getMessageEndpoint, initialResponseCompleteMessage);
+        await safeUpdateMessage(updateEndpoint, initialResponseCompleteMessage);
 
         const responses = simulation.stats.messagesPosted - simulation.locations.length;
 
@@ -469,20 +475,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
                   // Build prompt with conversation context
                   const contextPrompt = `You are at ${location.name} during an emergency. Here's the recent conversation:\n\n${conversationContext}\n\n${ROUND_PROMPT}`;
 
-                  // Call Ollama
-                  const ollamaResponse = await fetch(LOCAL_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      model: MODEL,
-                      prompt: contextPrompt,
-                      system: bot.systemPrompt,
-                      stream: false,
-                    }),
-                  });
-
-                  const ollamaData = await ollamaResponse.json();
-                  const responseText = ollamaData.response || 'No response';
+                  const responseText = await callOllama(contextPrompt, bot.systemPrompt);
 
                   // Post bot's response to thread
                   const messageEndpoint = `channels/${threadId}/messages`;
@@ -532,7 +525,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
                                         ? `⏳ Starting round ${round + 1}...`
                                         : `⏳ Beginning Final Round...`);
 
-          await safeUpdateMessage(getMessageEndpoint, roundProgressMessage);
+          await safeUpdateMessage(updateEndpoint, roundProgressMessage);
 
           console.log(`✓ Round ${round}/${roundCount} complete! Total messages: ${simulation.stats.messagesPosted}`);
 
@@ -585,20 +578,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
                 // Build prompt with conversation context
                 const contextPrompt = `You are at ${location.name} during an emergency. Here's the recent conversation:\n\n${conversationContext}\n\n${FINAL_PROMPT}`;
 
-                // Call Ollama
-                const ollamaResponse = await fetch(LOCAL_ENDPOINT, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    model: MODEL,
-                    prompt: contextPrompt,
-                    system: bot.systemPrompt,
-                    stream: false,
-                  }),
-                });
-
-                const ollamaData = await ollamaResponse.json();
-                const responseText = ollamaData.response || 'No response';
+                const responseText = await callOllama(contextPrompt, bot.systemPrompt);
 
                 // Post bot's response to thread
                 const messageEndpoint = `channels/${threadId}/messages`;
@@ -624,7 +604,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
 
             console.log(`✓ Completed Final Round at ${location.name}`);
             location.transcript = location.transcript + `======TRANSCRIPT COMPLETE======`;
-            createFileAsync(`./Transcripts/${simulation.id}/${location.name}`,`${location.transcript}`);
+            await createFileAsync(`./Transcripts/${simulation.id}/${location.name}`,`${location.transcript}`);
 
           } catch (locationErr) {
             console.error(`Error in Final Round at ${location.name}:`, locationErr);
@@ -645,7 +625,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
                                     `**Total Messages:** ${simulation.stats.messagesPosted}\n\n` +
                                     `⏳ Finalizing Simulation...`;
 
-        await safeUpdateMessage(getMessageEndpoint, roundProgressMessage);
+        await safeUpdateMessage(updateEndpoint, roundProgressMessage);
 
         console.log(`✓ Final Round complete! Total messages: ${simulation.stats.messagesPosted}`);
 
@@ -676,7 +656,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
                             `✅ All conversations archived in location threads above.\n` +
                             `Thank you for running this emergency simulation!`;
 
-        await safeUpdateMessage(getMessageEndpoint, finalMessage);
+        await safeUpdateMessage(updateEndpoint, finalMessage);
 
         console.log(`🏁 Simulation ${simulation.id} complete!`);
         console.log(`   Total messages: ${simulation.stats.messagesPosted}`);
