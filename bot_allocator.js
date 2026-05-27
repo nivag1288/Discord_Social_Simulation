@@ -50,16 +50,18 @@ function normalizeToProbabilities(weights) {
 function selectLocationByProbability(probabilities) {
   const rand = Math.random();
   let cumulative = 0;
+  const entries = Object.entries(probabilities);
 
-  for (const [location, probability] of Object.entries(probabilities)) {
+  for (let i = 0; i < entries.length; i++) {
+    const [location, probability] = entries[i];
     cumulative += probability;
-    if (rand <= cumulative) {
+    // Snap the last bucket to absorb floating-point rounding error
+    if (rand <= cumulative || i === entries.length - 1) {
       return location;
     }
   }
 
-  // Fallback to first location (shouldn't happen with proper probabilities)
-  return Object.keys(probabilities)[0];
+  return entries[0][0];
 }
 
 /**

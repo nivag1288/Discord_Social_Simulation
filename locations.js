@@ -57,7 +57,11 @@ export function getRandomLocations(count) {
     throw new Error(`Requested ${count} locations but only ${LOCATION_PRESETS.length} are available`);
   }
 
-  const shuffled = [...LOCATION_PRESETS].sort(() => Math.random() - 0.5);
+  const shuffled = [...LOCATION_PRESETS];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
   return shuffled.slice(0, count);
 }
 

@@ -210,6 +210,15 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       const locationCount = parseInt(parts[2], 10);
       const roundCount = parseInt(parts[3], 10);
 
+      if (isNaN(locationCount) || isNaN(roundCount) ||
+          locationCount < 4 || locationCount > 6 ||
+          roundCount < 1 || roundCount > 7) {
+        return res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { content: '❌ Invalid simulation parameters.', flags: 64 },
+        });
+      }
+
       // Extract emergency message
       const emergencyMessage = components[0].components[0].value;
 
@@ -645,8 +654,9 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
 
         console.log(`\nAll rounds complete! Finalizing simulation...`);
 
-        // Mark simulation as complete
+        // Mark simulation as complete and free memory
         updateSimulationStatus(simulation, 'complete');
+        activeSimulations.delete(simulation.id);
 
 
         // Build final completion summary
