@@ -58,7 +58,7 @@ export function createSimulation(locationCount, roundCount, emergencyMessage) {
       name: location.name,
       emoji: location.emoji,
       type: location.type,
-      capacity: location.capacity,
+      capacity: { ...location.capacity },
       description: location.description,
       threadId: null, // Will be filled when thread is created
       bots: assignments[location.name].bots,

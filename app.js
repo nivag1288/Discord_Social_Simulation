@@ -22,6 +22,12 @@ import {
 } from './simulation_engine.js';
 import fs from 'fs/promises';
 
+// Fail fast if any required env var is missing
+const REQUIRED_ENV = ['DISCORD_TOKEN', 'APP_ID', 'PUBLIC_KEY', 'MODEL', 'LOCAL_ENDPOINT'];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) throw new Error(`Missing required environment variable: ${key}`);
+}
+
 const {MODEL,LOCAL_ENDPOINT} = process.env;
 
 // Ollama model
@@ -624,14 +630,15 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       } catch (err) {
         console.error('Simulation creation error:', err);
 
-        // Update message with error
-        const getMessageEndpoint = `webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`;
-        await DiscordRequest(getMessageEndpoint, {
-          method: 'PATCH',
-          body: {
-            content: `❌ **Simulation Error**\n\n${err.message}\n\nPlease try again or contact support.`,
-          },
-        });
+        // Use updateEndpoint if already established (post-setup errors), otherwise fall back to
+        // the interaction webhook URL (pre-setup errors, still within the 15-min window)
+        const errorEndpoint = typeof updateEndpoint !== 'undefined'
+          ? updateEndpoint
+          : `webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`;
+        await safeUpdateMessage(
+          errorEndpoint,
+          `❌ **Simulation Error**\n\n${err.message}\n\nPlease try again or contact support.`
+        );
       }
 
       return;
