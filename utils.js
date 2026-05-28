@@ -46,3 +46,53 @@ export function getRandomEmoji() {
 export function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
+
+// Decode HTML entities so encoded payloads (e.g. &#60;script&#62;) are caught by security checks
+export function decodeHtmlEntities(str) {
+  return str
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'");
+}
+
+// Check an emergency message for XSS and injection attempts
+// Returns { valid: boolean, errors: string[] }
+export function validateMessageSecurity(message) {
+  const errors = [];
+  const lowerMessage = decodeHtmlEntities(message).toLowerCase();
+
+  if (lowerMessage.includes('<script') || lowerMessage.includes('</script>')) {
+    errors.push('Message contains script tags');
+  }
+
+  const eventHandlers = ['onclick', 'onerror', 'onload', 'onmouseover', 'onfocus', 'onblur'];
+  for (const handler of eventHandlers) {
+    if (lowerMessage.includes(handler)) {
+      errors.push('Message contains event handlers');
+      break;
+    }
+  }
+
+  if (lowerMessage.includes('javascript:')) {
+    errors.push('Message contains javascript protocol');
+  }
+
+  if (lowerMessage.includes('<iframe') || lowerMessage.includes('<embed') ||
+      lowerMessage.includes('<object') || lowerMessage.includes('<svg')) {
+    errors.push('Message contains potentially malicious HTML tags');
+  }
+
+  const sqlPatterns = ['drop table', 'delete from', 'insert into', 'update set', '1=1', '1\'=\'1'];
+  for (const pattern of sqlPatterns) {
+    if (lowerMessage.includes(pattern)) {
+      errors.push('Message contains SQL-like injection patterns');
+      break;
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}

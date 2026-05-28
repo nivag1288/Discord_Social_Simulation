@@ -77,6 +77,11 @@ describe('assignBotsToLocations', () => {
     expect(() => assignBotsToLocations(bots, THREE_LOCATIONS)).toThrow();
   });
 
+  it('throws when a bot has zero weight for all locations', () => {
+    const zeroBots = [{ name: 'Zero', locationAffinities: {}, defaultLocationWeight: 0 }];
+    expect(() => assignBotsToLocations(zeroBots, THREE_LOCATIONS)).toThrow('Total weight is zero');
+  });
+
   it('initialises every location in the assignments object', () => {
     const bots = makeBots(3);
     const assignments = assignBotsToLocations(bots, THREE_LOCATIONS);

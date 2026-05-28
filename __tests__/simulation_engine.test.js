@@ -63,7 +63,8 @@ function makeSimulation(overrides = {}) {
 describe('createSimulation', () => {
   it('returns a simulation with the correct top-level shape', () => {
     const sim = createSimulation(4, 3, 'Test emergency');
-    expect(sim.id).toMatch(/^sim_/);
+    // ID should be sim_ followed by a UUID (crypto.randomUUID format)
+    expect(sim.id).toMatch(/^sim_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     expect(sim.status).toBe('created');
     expect(sim.emergencyMessage).toBe('Test emergency');
     expect(sim.roundCount).toBe(3);

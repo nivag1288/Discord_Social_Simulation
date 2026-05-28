@@ -1,5 +1,18 @@
 import 'dotenv/config';
 import { capitalize, InstallGlobalCommands } from './utils.js';
+import { LOCATION_PRESETS } from './locations.js';
+
+// Minimum locations needed to hold all 30 residents given capacity constraints
+const MIN_LOCATIONS = 4;
+
+// Build choices dynamically — adding a location to locations.js automatically shows up here
+const locationChoices = Array.from(
+  { length: LOCATION_PRESETS.length - MIN_LOCATIONS + 1 },
+  (_, i) => {
+    const n = MIN_LOCATIONS + i;
+    return { name: `${n} location${n > 1 ? 's' : ''}`, value: n };
+  }
+);
 
 // Simple test command
 const TEST_COMMAND = {
@@ -20,12 +33,7 @@ const SIMULATE_COMMAND = {
       name: 'locations',
       description: 'Number of locations in the town',
       required: true,
-      choices: [
-        { name: '4 locations', value: 4 },
-        { name: '5 locations', value: 5 },
-        { name: '6 locations', value: 6 },
-      // if you add more locations to locations.js, add additional choices. must have at least enough capacity for every bot to be placed
-      ]
+      choices: locationChoices,
     },
     {
       type: 4, // Integer

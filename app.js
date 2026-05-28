@@ -8,7 +8,7 @@ import {
   MessageComponentTypes,
   verifyKeyMiddleware,
 } from 'discord-interactions';
-import { getRandomEmoji, DiscordRequest } from './utils.js';
+import { getRandomEmoji, DiscordRequest, decodeHtmlEntities, validateMessageSecurity } from './utils.js';
 import {
   createSimulation,
   formatSimulationSummary,
@@ -33,49 +33,7 @@ const FINAL_PROMPT = `By having conversations with others, you’ve been able to
 // localhost endpoint for sending messages
 //const LOCAL_ENDPOINT = 'http://localhost:11434/api/generate';
 
-// Helper function: Check for XSS and injection attempts
-function validateMessageSecurity(message) {
-  const errors = [];
-  const lowerMessage = message.toLowerCase();
-
-  // Check for script tags
-  if (lowerMessage.includes('<script') || lowerMessage.includes('</script>')) {
-    errors.push('Message contains script tags');
-  }
-
-  // Check for event handlers
-  const eventHandlers = ['onclick', 'onerror', 'onload', 'onmouseover', 'onfocus', 'onblur'];
-  for (const handler of eventHandlers) {
-    if (lowerMessage.includes(handler)) {
-      errors.push('Message contains event handlers');
-      break;
-    }
-  }
-
-  // Check for javascript: protocol
-  if (lowerMessage.includes('javascript:')) {
-    errors.push('Message contains javascript protocol');
-  }
-
-  // Check for common XSS patterns
-  if (lowerMessage.includes('<iframe') || lowerMessage.includes('<embed') || lowerMessage.includes('<object')) {
-    errors.push('Message contains potentially malicious HTML tags');
-  }
-
-  // Check for SQL injection patterns
-  const sqlPatterns = ['drop table', 'delete from', 'insert into', 'update set', '1=1', '1\'=\'1'];
-  for (const pattern of sqlPatterns) {
-    if (lowerMessage.includes(pattern)) {
-      errors.push('Message contains SQL-like injection patterns');
-      break;
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}
+// validateMessageSecurity and decodeHtmlEntities are imported from utils.js
 
 
 async function callOllama(prompt, systemPrompt, retries = 3) {

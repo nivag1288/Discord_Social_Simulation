@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { capitalize, getRandomEmoji, DiscordRequest, InstallGlobalCommands } from '../utils.js';
+import {
+  capitalize, getRandomEmoji, DiscordRequest, InstallGlobalCommands,
+  decodeHtmlEntities, validateMessageSecurity,
+} from '../utils.js';
 
 const KNOWN_EMOJIS = ['😭','😄','😌','🤓','😎','😤','🤖','😶‍🌫️','🌏','📸','💿','👋','🌊','✨'];
 
@@ -90,6 +93,75 @@ describe('DiscordRequest', () => {
     const calledOptions = vi.mocked(fetch).mock.calls[0][1];
     expect(typeof calledOptions.body).toBe('string');
     expect(JSON.parse(calledOptions.body)).toEqual({ content: 'hello' });
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+describe('decodeHtmlEntities', () => {
+  it('decodes decimal numeric entities', () => {
+    expect(decodeHtmlEntities('&#60;script&#62;')).toBe('<script>');
+  });
+
+  it('decodes hex numeric entities', () => {
+    expect(decodeHtmlEntities('&#x3c;script&#x3e;')).toBe('<script>');
+  });
+
+  it('decodes named entities', () => {
+    expect(decodeHtmlEntities('&lt;b&gt;&amp;&quot;&apos;')).toBe('<b>&"\'');
+  });
+
+  it('leaves plain text unchanged', () => {
+    expect(decodeHtmlEntities('Hurricane warning!')).toBe('Hurricane warning!');
+  });
+
+  it('handles mixed plain text and entities', () => {
+    expect(decodeHtmlEntities('Alert: &lt;danger&gt;')).toBe('Alert: <danger>');
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+describe('validateMessageSecurity', () => {
+  it('accepts a clean emergency message', () => {
+    const result = validateMessageSecurity('Hurricane Category 4 approaching. Evacuate immediately.');
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects messages with <script> tags', () => {
+    expect(validateMessageSecurity('<script>alert(1)</script>').valid).toBe(false);
+  });
+
+  it('rejects case-variant script tags', () => {
+    expect(validateMessageSecurity('<SCRIPT>alert(1)</SCRIPT>').valid).toBe(false);
+  });
+
+  it('rejects HTML-entity-encoded script tags', () => {
+    expect(validateMessageSecurity('&#60;script&#62;alert(1)&#60;/script&#62;').valid).toBe(false);
+  });
+
+  it('rejects messages with event handlers', () => {
+    expect(validateMessageSecurity('<img onerror="alert(1)">').valid).toBe(false);
+  });
+
+  it('rejects messages with javascript: protocol', () => {
+    expect(validateMessageSecurity('javascript:alert(1)').valid).toBe(false);
+  });
+
+  it('rejects iframe tags', () => {
+    expect(validateMessageSecurity('<iframe src="evil.com">').valid).toBe(false);
+  });
+
+  it('rejects SVG tags (can carry onload handlers)', () => {
+    expect(validateMessageSecurity('<svg onload="alert(1)">').valid).toBe(false);
+  });
+
+  it('rejects SQL injection patterns', () => {
+    expect(validateMessageSecurity("'; DROP TABLE residents; --").valid).toBe(false);
+  });
+
+  it('returns a non-empty errors array for invalid messages', () => {
+    const result = validateMessageSecurity('<script>bad</script>');
+    expect(result.errors.length).toBeGreaterThan(0);
   });
 });
 
