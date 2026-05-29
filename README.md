@@ -1,20 +1,23 @@
-# Getting Started app for Discord
+# Discord Social Simulation
 
-This project contains a LLM powered Social Simulation Discord app written in JavaScript, based on the [getting started guide](https://discord.com/developers/docs/getting-started) from Discord.
+A LLM-powered social simulation Discord app written in JavaScript. 30 AI-driven residents with distinct personalities react to emergency scenarios across multiple locations in a fictional coastal NC town (Manteo).
 
 ![Demo of App](social%20sim%20demo.gif)
+
 ## Project structure
-Below is a basic overview of the project structure:
 
 ```
-├── .env.sample -> sample .env file
-├── app.js      -> main entrypoint for app
-├── bot_allocator.js    -> utility functions for allocating bots to locations
-├── commands.js -> slash command payloads + helpers
-├── locations.js    -> locations bots are allocated to
-├── residents.js    -> list of bot personalities
-├── simulation_engine.js    -> runs the simulation
-├── utils.js    -> utility functions and enums
+├── .env.sample             -> sample .env file
+├── app.js                  -> main entrypoint for app
+├── bot_allocator.js        -> weighted random assignment of residents to locations
+├── commands.js             -> slash command definitions (auto-synced with locations.js)
+├── locations.js            -> location presets and helper functions
+├── personalities.js        -> MBTI personality prompt templates
+├── residents.js            -> 30 resident bot definitions
+├── simulation_engine.js    -> simulation state management
+├── utils.js                -> shared utilities (Discord API, security validation)
+├── vitest.config.js        -> test configuration
+├── __tests__/              -> test suite (7 files, 116 tests)
 ├── package.json
 ├── README.md
 └── .gitignore
@@ -22,97 +25,122 @@ Below is a basic overview of the project structure:
 
 ## Running app locally
 
-Before you start, you'll need to install [NodeJS](https://nodejs.org/en/download/), [Ollama](https://ollama.com), and [Ngrok](https://ngrok.com/?homepage-cta-docs=control)
+Before you start, install [NodeJS](https://nodejs.org/en/download/) (>=18), [Ollama](https://ollama.com), and [Ngrok](https://ngrok.com/).
 
-You also need to [create a Discord app](https://discord.com/developers/applications) with the proper permissions:
+You also need to [create a Discord app](https://discord.com/developers/applications) with the following permissions:
 - `applications.commands`
 - `bot` (with Send Messages enabled)
+
 Configuring the app is covered in detail in the [getting started guide](https://discord.com/developers/docs/getting-started).
 
 ### Setup project
 
-First clone the project:
-```
+```bash
 git clone https://github.com/nivag1288/Discord_Social_Simulation.git
-```
-
-Then navigate to its directory and install dependencies:
-```
 cd Discord_Social_Simulation
 npm install
 ```
-### Get app credentials
 
-Fetch the credentials from your app's settings and add them to a `.env` file (see `.env.sample` for an example). You'll need your app ID (`APP_ID`), bot token (`DISCORD_TOKEN`), and public key (`PUBLIC_KEY`).
+### Configure environment variables
 
-Fetching credentials is covered in detail in the [getting started guide](https://discord.com/developers/docs/getting-started).
+Copy `.env.sample` to `.env` and fill in all required values:
+
+```
+APP_ID=          # Discord application ID
+DISCORD_TOKEN=   # Bot token
+PUBLIC_KEY=      # Public key for request verification
+MODEL=           # Ollama model name (e.g. gemma3:1b)
+LOCAL_ENDPOINT=  # Ollama API URL (e.g. http://localhost:11434/api/generate)
+```
+
+The app validates all five variables at startup and exits with a clear error if any are missing.
 
 ### Install slash commands
 
-The commands for the app are set up in `commands.js`. All the commands in the `ALL_COMMANDS` array at the bottom of `commands.js` will be installed when you run the `register` command configured in `package.json`:
-Currently there are two commands, '/test' for simple connection testing, and '/simulate' to run the simulation
-
-```
+```bash
 npm run register
 ```
 
-### Start Olamma
+This registers `/test` (connection check) and `/simulate` with Discord. Location choices are generated automatically from `locations.js` — no manual sync needed.
 
-Start Ollama on your local machine and make sure the model is: `gemma3:1b`
+### Start Ollama
 
+Start Ollama on your local machine and pull the model you configured in `.env`:
 
+```bash
+ollama pull gemma3:1b
+```
 
 ### Run the app
 
-After your credentials are added, go ahead and run the app:
-
-```
+```bash
 npm start
 ```
 
-> ⚙️ A package [like `nodemon`](https://github.com/remy/nodemon), which watches for local changes and restarts your app, may be helpful while locally developing.
-
+> Use `npm run dev` to run with `nodemon` for auto-restart on file changes.
 
 ### Set up interactivity
 
-The project needs a public endpoint where Discord can send requests. To develop and test locally, you can use something like [`ngrok`](https://ngrok.com/) to tunnel HTTP traffic.
+The app needs a public endpoint for Discord to reach. Use [`ngrok`](https://ngrok.com/) to tunnel local traffic:
 
-Start listening on port `3000`:
-
-```
+```bash
 ngrok http 3000
 ```
 
-You should see your connection open:
+Copy the `https://...ngrok.io` forwarding URL, go to your [app's settings](https://discord.com/developers/applications), and paste it into **General Information → Interactions Endpoint URL**, appending `/interactions`:
 
 ```
-Tunnel Status                 online
-Version                       2.0/2.0
-Web Interface                 http://127.0.0.1:4040
-Forwarding                    https://1234-someurl.ngrok.io -> localhost:3000
-
-Connections                  ttl     opn     rt1     rt5     p50     p90
-                              0       0       0.00    0.00    0.00    0.00
+https://1234-someurl.ngrok.io/interactions
 ```
 
-Copy the forwarding address that starts with `https`, in this case `https://1234-someurl.ngrok.io`, then go to your [app's settings](https://discord.com/developers/applications).
+Click **Save Changes** and the app is ready 🚀
 
-On the **General Information** tab, there will be an **Interactions Endpoint URL**. Paste your ngrok address there, and append `/interactions` to it (`https://1234-someurl.ngrok.io/interactions` in the example).
+---
 
-Click **Save Changes**, and your app should be ready to run 🚀
+## Running tests
+
+The project uses [Vitest](https://vitest.dev/) for unit testing.
+
+```bash
+# Run all tests once
+npm test
+
+# Run tests in watch mode (re-runs on file changes)
+npm run test:watch
+
+# Run tests and generate a coverage report
+npm run coverage
+```
+
+Coverage is enforced at **70% minimum** across lines, functions, branches, and statements (currently >98%). The HTML report is written to `coverage/index.html`.
+
+Tests cover:
+- `bot_allocator.js` — weight calculation, assignment algorithm, validation, stats
+- `simulation_engine.js` — all state management functions, simulation creation
+- `locations.js` — shuffle, capacity helpers, data integrity
+- `utils.js` — Discord API helpers, `capitalize`, `getRandomEmoji`, `decodeHtmlEntities`, `validateMessageSecurity`
+- `personalities.js` — all 16 MBTI types present and non-empty
+- `residents.js` — 30 residents with valid fields, weights, and personality codes
+- `commands.js` — location choices formula matches `LOCATION_PRESETS`
+
+---
 
 ## Simulation
-The simulation can be run in your Discord Server with '/simulate'. This will open a multi-modal input allowing the user to chose:
-* The number of **locations**: 4 - 6
-  * The more locations the more places to allocate the bots, so less bots per location. 
-  * Locations can be found in `locations.js`. Adding more locations to the list means you have to add more options in `commands.js`
-  * Bots have weighting for 3 locations based on the chance they would be in that location based on their personality. 
-    * For example, Elanor an older women is more likey to be in church, the grocery store, or the library. She has a default weight to go to the other locations
-* The number of **rounds**: 1 - 10
-  * 1 round is an initial response from the bots to your message, then 1 message from each responding to eachother in a specific location
-  * More rounds means more responses, higher rounds will increase runtime
-* After hitting enter, the user can type in their **error message** and start the simulation
-  * all bots see error message and respond 
+
+Run `/simulate` in your Discord server. A modal will open with:
+
+- **Locations** (4–6): number of places residents gather. More locations = fewer residents per thread.  
+  Locations are defined in `locations.js`. Adding a new entry there automatically adds it as a choice in the slash command.
+- **Rounds** (1–7): number of conversation rounds after the initial response. More rounds = longer runtime.
+- **Emergency message**: the scenario all residents react to (e.g. a hurricane warning, wildfire, flood). Each resident sees the message and responds based on their personality, role, and location.
+
+The simulation posts a thread per location, runs all residents through each round, then saves a full transcript to `./Transcripts/<simulation-id>/`.
+
+Resident personalities, location affinities, and MBTI types can all be customised in `residents.js` and `personalities.js`.
+
+---
 
 ## Other resources
-- Read **[the documentation](https://discord.com/developers/docs/intro)** for in-depth information about API features.
+- [Discord Developer Documentation](https://discord.com/developers/docs/intro)
+- [Ollama](https://ollama.com)
+- [Vitest](https://vitest.dev/)

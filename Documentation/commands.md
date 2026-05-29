@@ -1,36 +1,55 @@
-## Documentation for Commands.js
+## Documentation for commands.js
 
-File holds details on slash commands used in Discord. 
+Defines the Discord slash commands registered with the bot. Commands are synced to Discord at startup by `InstallGlobalCommands` in `app.js`.
+
+---
 
 # TEST_COMMAND
-Command used to test the connection is established when running the program
+
+Used to verify the bot is reachable and responding.
+
 ```
 /test
 ```
-Should return
+
+Returns:
 ```
-Hellow World<random emoji>
+Hello World <random emoji>
 ```
 
+---
+
 # SIMULATE_COMMAND
-Command used to set up and run the simulation
+
+Opens a modal for configuring and launching an emergency simulation.
+
 ```
-/simulate <number of locations to include> <number of conversation rounds to do>
+/simulate
 ```
-* Number of locations to include
-  * Current setup is anywhere from 4-6
-  * Must have minimum capacity >= the number of residents
-  * More locations can be added, must add to locatoins.js and increase chocies in commands.js
-* Number of rounds to do
-  * When you click start and send your initial message, all bots will give their response. This counts as round 0
-  * Each round bots will view the chat history of the last 10 messages and create a response
-  * More rounds means higher runtime
-  * Number of rounds can be changed, add more choices with corresponding value to commands.js
-    * { name: '10 rounds', value: 10 }
+
+The modal collects three inputs:
+
+* **Number of locations** (4 – total presets)
+  * Choices are generated automatically from `LOCATION_PRESETS` in `locations.js` — adding a new preset there adds a new choice here with no manual update to `commands.js`.
+  * Each simulation needs a minimum of 4 locations so total max capacity is always ≥ 30 (enough room for all residents).
+
+* **Number of rounds** (1 – 7)
+  * Round 0 is the initial response to the emergency message.
+  * Each additional round has every resident read the last 10 messages in their thread and reply again.
+  * More rounds = longer runtime.
+  * To add or remove round choices, update the `choices` array under `roundCount` in `SIMULATE_COMMAND`.
+
+* **Emergency message**
+  * The scenario all residents react to (e.g. a hurricane warning, wildfire, power outage).
+  * Validated for XSS and SQL injection patterns before the simulation starts.
+
+---
 
 # ALL_COMMANDS
 
-Comma separated list with all the commands. If you want to add new commands, they need to be in this list
-To register newly created commands, put the command in the ALL_COMMANDS list and run
-```npm register```
+Array containing every command object (`TEST_COMMAND`, `SIMULATE_COMMAND`). This is what `InstallGlobalCommands` sends to Discord.
 
+To register a new command:
+1. Define the command object.
+2. Add it to `ALL_COMMANDS`.
+3. Run `npm run register`.

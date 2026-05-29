@@ -1,60 +1,61 @@
-## Documentation for bot_allotcator.js
+## Documentation for bot_allocator.js
 
-File responsible for allocating bots to the location list for each simulation
-Bots = Residents, the wording is interchangeable in the documentation
-Simulations won't always have all the locations in the preset list
+File responsible for allocating bots to the location list for each simulation.
+Bots = Residents — the wording is interchangeable throughout the documentation.
+Simulations won't always use all locations in the preset list.
 
 # Exports
 
-* calculateLocationWeights
-  * calulates the location weighting per bot based on predefiend weighting from reidents.js
-  * Input
-    * bot:one of the residents 
-    * locations: list of locations for the simulation run
-  * Output
-    * weights: list of weights for each location
-* assignBotsToLocations
-  * assigns bots to available locations. Greedy, doesn't find best weighting for each just assigns
-  * Input
-    * bots: list of residents
-    * locations: list of locations for the simulation
-  * Ouptut
-    * assignments
-      * list of what bot goes where
-* validateAssignments
-  * checks that bots are only assigned once and that all locations are within capacity
-  * Inputs
-    * assignments: list of what bot goes where
-    * bots: list of redidents
-    * locations: list of locations for the simulation
-  * Output
-    * valid boolean
-    * list of errors and warnings
-* printAssignmentSummary
-  * prints summary of assignments in pretty format in Discord channel
-  * Input: assignments
-* getAssignmentStats
-  * gets stats for the assignment for the simulation
-  * Input: assignments
-  * Output
-    * Total Number of Bots
-    * Location Count
-    * Average Bots per Location
-    * minimum Bots
-    * maximum Bots
+* **calculateLocationWeights(bot, locations)**
+  * Calculates a weight for each location for a given bot based on the bot's `locationAffinities` map (from `residents.js`).
+  * If the location name is in the bot's `locationAffinities`, that value is used; otherwise `defaultLocationWeight` is used.
+  * Input: `bot` (resident object), `locations` (array of location objects for this simulation run)
+  * Output: `weights` — object mapping location name → raw weight value
+
+* **assignBotsToLocations(bots, locations)**
+  * Assigns each bot to exactly one location using a greedy weighted-random strategy.
+  * For each bot: calculates weights, normalises to probabilities, then picks a location via `selectLocationByProbability`. If the chosen location is full, falls back to the first location with remaining capacity.
+  * Input: `bots` (array of residents), `locations` (array of locations for this simulation)
+  * Output: `assignments` — object mapping location name → `{ location, bots[] }`
+
+* **validateAssignments(assignments, bots, locations)**
+  * Verifies correctness of a completed assignment:
+    * Every bot is assigned exactly once (no duplicates, no missing bots)
+    * No location exceeds its `capacity.max`
+  * Input: `assignments`, `bots`, `locations`
+  * Output: `{ valid: boolean, errors: string[] }`
+
+* **printAssignmentSummary(assignments)**
+  * Logs a formatted summary of the assignment to the console (location name, bot count, bot names).
+  * Input: `assignments`
+
+* **getAssignmentStats(assignments)**
+  * Computes aggregate statistics for a completed assignment.
+  * Input: `assignments`
+  * Output:
+    * `totalBots` — total number of assigned bots
+    * `locationCount` — number of locations
+    * `avgBotsPerLocation` — mean bots per location
+    * `minBots` — fewest bots in any location
+    * `maxBots` — most bots in any location
+
+---
 
 # Helper Functions
-* normalizeToProbabilities
-  * normalizes the probablity weighting for each resident
-  * Input: weights
-  * Output: probabilities
-* selectLocationByProbability
-  * selects a location for the bot based on calculated probabilties
-  * Input: probabilities
-  * Ouptut: location
-* isLocationAtCapacity
-  * checks if a location is at capacity
-  * Input:
-    * assignments
-    * location
-  * Output: boolean, true if assignments.length >= location.capacity.max
+
+* **normalizeToProbabilities(weights)**
+  * Converts raw weights to probabilities that sum to 1.
+  * Throws if all weights are zero (no valid assignment is possible).
+  * Input: `weights` (object mapping name → number)
+  * Output: `probabilities` (object mapping name → number in [0, 1])
+
+* **selectLocationByProbability(probabilities)**
+  * Picks a location name by sampling from the probability distribution.
+  * Uses a cumulative-sum walk; the last bucket is always returned if floating-point rounding leaves the sum just below 1.0 — this prevents the silent wrong-fallback that biased assignment away from the last entry.
+  * Input: `probabilities`
+  * Output: location name (string)
+
+* **isLocationAtCapacity(assignments, location)**
+  * Returns `true` if the number of bots already assigned to a location equals or exceeds `location.capacity.max`.
+  * Input: `assignments`, `location`
+  * Output: boolean
